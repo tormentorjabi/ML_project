@@ -53,5 +53,41 @@ Project Organization
 
 
 --------
+# Установка окружения и зависимостей
 
+## 1. Создание виртуального окружения
+
+```bash
+python -m venv venv
+```
+
+## 2. Активация виртуального окружения
+
+### Windows (PowerShell)
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+### Linux/macOS (bash)
+```bash
+source venv/bin/activate
+```
+
+## 3. Установка зависимостей
+
+### Через файл requirements.txt
+```bash
+pip install -r requirements.txt
+```
+
+### Или вручную
+```bash
+pip install flake8 mypy pre-commit
+```
+
+## 4. Установка pre-commit hook
+
+```bash
+pre-commit install
+```
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
