@@ -55,9 +55,14 @@ Project Organization
 --------
 # Установка окружения и зависимостей
 
-## 1. Создание виртуального окружения
+## 0. Клонирование репозитория
 
-```bash
+```
+git clone https://github.com/tormentorjabi/ML_project.git
+```
+## 1. Создание виртуального окружения (В корне проекта ML_project)
+
+```bash 
 python -m venv venv
 ```
 
@@ -65,7 +70,7 @@ python -m venv venv
 
 ### Windows (PowerShell)
 ```powershell
-.\venv\Scripts\Activate.ps1
+.\venv\Scripts\Activate
 ```
 
 ### Linux/macOS (bash)
