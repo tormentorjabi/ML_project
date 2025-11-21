@@ -60,39 +60,42 @@ Project Organization
 ```
 git clone https://github.com/tormentorjabi/ML_project.git
 ```
-## 1. Создание виртуального окружения (В корне проекта ML_project)
+## 1.  Инициализация uv и установка зависимостей
 
 ```bash 
-python -m venv venv
+uv install
 ```
 
-## 2. Активация виртуального окружения
-
-### Windows (PowerShell)
-```powershell
-.\venv\Scripts\Activate
-```
-
-### Linux/macOS (bash)
-```bash
-source venv/bin/activate
-```
-
-## 3. Установка зависимостей
-
-### Через файл requirements.txt
-```bash
-pip install -r requirements.txt
-```
-
-### Или вручную
-```bash
-pip install flake8 mypy pre-commit
-```
-
-## 4. Установка pre-commit hook
+## 2. Запуск pre-commit hook
 
 ```bash
-pre-commit install
+uv run pre-commit install
+```
+
+## 3. Настройка MinIO (S3) для локального хранения данных
+```
+# добавляем alias для локального MinIO
+mc alias set local http://localhost:9000 admin admin123
+
+# создаём бакеты, если их ещё нет
+mc mb local/raw
+mc mb local/processed
+
+# загружаем исходный CSV в raw
+mc cp data/raw/taxi_trip_pricing.csv local/raw/
+```
+
+## 4. Запуск pipeline
+```
+uv run python -m src.run_pipeline --bucket raw --input-key taxi_trip_pricing.csv --output-key taxi_trip_pricing_processed.csv
+
+> Параметры:
+> - `--bucket` — бакет в S3  
+> - `--input-key` — имя исходного файла  
+> - `--output-key` — имя обработанного файла 
+
+Или заменяем на ваш датасет
+
+Файл taxi_trip_pricing_processed.csv будет сохранён обратно в S3 (бакет raw).
 ```
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
