@@ -53,49 +53,63 @@ Project Organization
 
 
 --------
-# Установка окружения и зависимостей
+# Окружение и запуск (Windows / PowerShell)
 
-## 0. Клонирование репозитория
-
-```
-git clone https://github.com/tormentorjabi/ML_project.git
-```
-## 1.  Инициализация uv и установка зависимостей
-
-```bash 
+## 1. Установка зависимостей
+```powershell
 uv install
-```
-
-## 2. Запуск pre-commit hook
-
-```bash
 uv run pre-commit install
 ```
 
-## 3. Настройка MinIO (S3) для локального хранения данных
+## 2. Поднять инфраструктуру (MinIO + MLflow)
+```powershell
+docker compose up -d
 ```
-# добавляем alias для локального MinIO
-mc alias set local http://localhost:9000 admin admin123
+- MinIO web: http://localhost:9001  
+- MLflow UI: http://localhost:5000
 
-# создаём бакеты, если их ещё нет
-mc mb local/raw
-mc mb local/processed
-
-# загружаем исходный CSV в raw
-mc cp data/raw/taxi_trip_pricing.csv local/raw/
+## 3. Загрузить датасет в MinIO (пример для taxi_trip_pricing.csv)
+```powershell
+docker compose cp .\taxi_trip_pricing.csv minio-mc:/tmp/taxi_trip_pricing.csv
+docker compose exec minio-mc mc cp /tmp/taxi_trip_pricing.csv local/raw/
 ```
+После загрузки в конфиге указывайте `bucket: raw`, `key: taxi_trip_pricing.csv`.
 
-## 4. Запуск pipeline
+## 4. Запуск одиночного эксперимента
+Отредактируйте `configs/experiment.yaml` при необходимости и выполните:
+```powershell
+docker run --rm --network ml_project_default `
+  -e S3_ENDPOINT_URL=http://minio:9000 `
+  -e S3_ACCESS_KEY=admin `
+  -e S3_SECRET_KEY=admin123 `
+  -e MLFLOW_S3_ENDPOINT_URL=http://minio:9000 `
+  -v "${PWD}\models:/app/models" `
+  -v "${PWD}\configs\experiment.yaml:/app/configs/active.yaml:ro" `
+  taxi-experiments `
+  python -m src.experiments.run_experiment --config configs/active.yaml
 ```
-uv run python -m src.run_pipeline --bucket raw --input-key taxi_trip_pricing.csv --output-key taxi_trip_pricing_processed.csv
+Результат:
+- run и метрики в MLflow (`taxi-pricing-rf`),
+- модель и метрики сохраняются в S3 бакет `experiments/<experiment>/<run>/`,
+- локально — в `models/<experiment>/<run>.joblib` и `.metrics.json`.
 
-> Параметры:
-> - `--bucket` — бакет в S3  
-> - `--input-key` — имя исходного файла  
-> - `--output-key` — имя обработанного файла 
-
-Или заменяем на ваш датасет
-
-Файл taxi_trip_pricing_processed.csv будет сохранён обратно в S3 (бакет raw).
+## 5. Запуск перебора гиперпараметров
+Опишите сетку в `configs/grid.yaml` и запустите:
+```powershell
+docker run --rm --network ml_project_default `
+  -e S3_ENDPOINT_URL=http://minio:9000 `
+  -e S3_ACCESS_KEY=admin `
+  -e S3_SECRET_KEY=admin123 `
+  -e MLFLOW_S3_ENDPOINT_URL=http://minio:9000 `
+  -v "${PWD}\models:/app/models" `
+  -v "${PWD}\configs\grid.yaml:/app/configs/grid_active.yaml:ro" `
+  taxi-experiments `
+  python -m src.experiments.run_grid --config configs/grid_active.yaml
 ```
+Все комбинации попадут в MLflow эксперимент `taxi-pricing-grid` и в S3 бакет `experiments`.
+
+## Примечания
+- Ссылка на датасет https://github.com/tormentorjabi/data/blob/main/taxi_trip_pricing.csv
+- Образ для обучения: `docker build -t taxi-experiments .`
+- Переменные S3/MLflow берутся из окружения, для локалки используются данные из docker-compose (endpoint minio, ключи admin/admin123).
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>

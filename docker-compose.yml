@@ -10,3 +10,38 @@ services:
       MINIO_ROOT_USER: admin  
       MINIO_ROOT_PASSWORD: admin123
     command: server /data --console-address ":9001"
+
+  minio-mc:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+        sleep 5;
+        mc alias set local http://minio:9000 admin admin123;
+        mc mb --ignore-existing local/raw;
+        mc mb --ignore-existing local/processed;
+        mc mb --ignore-existing local/experiments;
+        mc mb --ignore-existing local/mlflow;
+      "
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.16.2
+    depends_on:
+      - minio
+      - minio-mc
+    environment:
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: admin123
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    working_dir: /mlflow
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:///mlflow.db
+      --artifacts-destination s3://mlflow
+      --host 0.0.0.0
+      --port 5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlflow:/mlflow

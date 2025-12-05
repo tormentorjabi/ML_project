@@ -1,4 +1,5 @@
 import argparse
+
 from .data.download_from_s3 import download_file
 from .data.process_dataset import process
 from .data.upload_to_s3 import upload_file
@@ -11,10 +12,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bucket", default="raw")
     parser.add_argument("--input-key", default="taxi_trip_pricing.csv")
-    parser.add_argument(
-        "--output-key",
-        default="taxi_trip_pricing_processed.csv"
-    )
+    parser.add_argument("--output-key", default="taxi_trip_pricing_processed.csv")
     args = parser.parse_args()
 
     download_file(args.bucket, args.input_key, RAW_LOCAL)

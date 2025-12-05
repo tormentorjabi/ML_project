@@ -1,0 +1,19 @@
+data:
+  bucket: raw
+  key: taxi_trip_pricing.csv
+  local_path: data/processed/taxi_trip_pricing.csv
+  target: Trip_Price
+
+experiment:
+  name: taxi-pricing-rf
+  tracking_uri: http://mlflow:5000
+  s3_bucket: experiments
+  test_size: 0.2
+  random_state: 42
+
+model:
+  params:
+    n_estimators: 300
+    max_depth: 12
+    max_features: sqrt
+
