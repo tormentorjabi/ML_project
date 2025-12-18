@@ -108,6 +108,96 @@ docker run --rm --network ml_project_default `
 ```
 Все комбинации попадут в MLflow эксперимент `taxi-pricing-grid` и в S3 бакет `experiments`.
 
+## 6. REST-сервис для инференса модели
+
+### 6.1. Локальный запуск (без Docker)
+```powershell
+uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000
+```
+По умолчанию сервис ищет модель по пути:
+- `models/taxi-pricing-rf/taxi-pricing-rf-max_depth=12-max_features=sqrt-n_estimators=300-20251205-102201.joblib`
+
+Путь к модели можно переопределить:
+```powershell
+$env:MODEL_PATH="models\taxi-pricing-rf\taxi-pricing-rf-max_depth=12-max_features=sqrt-n_estimators=300-20251205-102201.joblib"
+uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000
+```
+
+Проверка работоспособности:
+```powershell
+curl http://localhost:8000/health
+```
+
+Пример запроса к `/predict`:
+```powershell
+curl -X POST "http://localhost:8000/predict" `
+  -H "Content-Type: application/json" `
+  -d '{"instances":[{"Trip_Distance_km":10.5,"Time_of_Day":"Morning","Day_of_Week":"Weekday","Passenger_Count":2,"Traffic_Conditions":"Medium","Weather":"Clear","Base_Fare":3.0,"Per_Km_Rate":1.2,"Per_Minute_Rate":0.3,"Trip_Duration_Minutes":25.0}]}'
+```
+
+### 6.2. Запуск сервиса в Docker
+
+Собрать образ:
+```powershell
+docker build -f Dockerfile.api -t taxi-api .
+```
+
+Запустить контейнер (модель монтируется из локальной папки `models`):
+```powershell
+docker run --rm -p 8000:8000 `
+  -v "${PWD}\models:/app/models" `
+  taxi-api
+```
+
+Или явно указать путь к модели:
+```powershell
+docker run --rm -p 8000:8000 `
+  -v "${PWD}\models:/app/models" `
+  -e MODEL_PATH="models/taxi-pricing-rf/taxi-pricing-rf-max_depth=12-max_features=sqrt-n_estimators=300-n_estimators=300-20251205-102201.joblib" `
+  taxi-api
+```
+
+После запуска:
+- Swagger UI: http://localhost:8000/docs  
+- `/predict`: POST http://localhost:8000/predict
+
+## 7. Нагрузочное тестирование
+
+Для нагрузочного теста используется скрипт `scripts/load_test.py`, который шлёт запросы к `/predict`
+в N параллельных соединений и выводит статистику по латенциям.
+
+### 7.1. Запуск
+```powershell
+uv run python .\scripts\load_test.py `
+  --url "http://localhost:8000/predict" `
+  --total-requests 500 `
+  --concurrency 1 2 5 10 20 50
+```
+
+Вывод будет вида:
+```text
+N   avg_ms  q25_ms  q50_ms  q90_ms  q95_ms  q99_ms  ok_requests
+1   ...     ...     ...     ...     ...     ...     500
+2   ...
+...
+```
+
+### 7.2. Таблица для README
+
+| N  | avg, ms | q25, ms | q50, ms | q90, ms | q95, ms | q99, ms |
+|----|---------|---------|---------|---------|---------|---------|
+| 1  | 65.55   | 64.06   | 65.12   | 68.27   | 70.09   | 84.20   |
+| 2  | 120.05  | 109.88  | 119.55  | 142.06  | 147.55  | 159.79  |
+| 5  | 303.60  | 283.01  | 303.96  | 343.86  | 361.95  | 387.49  |
+| 10 | 616.06  | 577.88  | 617.29  | 697.99  | 726.87  | 783.25  |
+| 20 | 1236.77 | 1166.08 | 1256.73 | 1403.63 | 1450.72 | 1527.98 |
+| 50 | 3056.78 | 2919.68 | 3127.21 | 3444.49 | 3519.55 | 3643.66 |
+
+### Характеристики железа
+
+- CPU: AMD Ryzen 5 5600 6-Core Processor, 6 cores / 12 threads
+- GPU: не использовался, инференс только на CPU
+
 ## Примечания
 - Ссылка на датасет https://github.com/tormentorjabi/data/blob/main/taxi_trip_pricing.csv
 - Образ для обучения: `docker build -t taxi-experiments .`
